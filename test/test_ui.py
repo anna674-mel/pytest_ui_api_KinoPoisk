@@ -1,11 +1,13 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 import pytest
-from configuration.ConfigProvider import ConfigProvider
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 import allure
+from page.MainPage import MainPage
+from page.FilmPage import FilmPage
+from page.MovieTicketsPage import MovieTicketsPage
+from page.SearchResultPage import SearchResultPage
+from page.ChancePage import ChancePage
 
 
 @pytest.fixture(scope="module")
@@ -24,106 +26,71 @@ def search_input():
 @allure.title("Поиск фильма по валидному названию")
 def test_search_movie_by_text(browser, search_input):
     text = "Брат"
-    browser.get(ConfigProvider().get_ui_url())
-    wait = WebDriverWait(browser, ConfigProvider().get_ui_waiting_time())
-    search_input = wait.until(EC.presence_of_element_located(search_input))
-    search_input.send_keys(text)
-    wait.until(EC.presence_of_element_located((By.ID, "suggest-container")))
-    top_result = wait.until(EC.presence_of_element_located(
-        (By.CSS_SELECTOR, "ul[role='list'] li[data-index='0']"))
-    )
-    wait.until(EC.element_to_be_clickable(top_result))
-    element = browser.find_element(
-        By.CSS_SELECTOR, "ul[role='list'] li[data-index='0'] a"
-    )
-    assert text == element.text
+    main_page = MainPage(browser)
+    main_page.open()
+    main_page.search_in_search_bar(text)
+    reslult = main_page.get_first_result()
+    main_page.check_element_to_be_clickable(reslult)
+    title = main_page.get_text_element(reslult)
+    assert text == title
 
 
 @pytest.mark.ui
 @allure.title("Переход на карточку фильма из результов поиска")
 def test_go_to_movie_card(browser, search_input):
     text = "Брат"
-    browser.get(ConfigProvider().get_ui_url())
-    wait = WebDriverWait(browser, ConfigProvider().get_ui_waiting_time())
-    search_input = wait.until(EC.presence_of_element_located(search_input))
-    search_input.send_keys(text)
-    wait.until(EC.presence_of_element_located((By.ID, "suggest-container")))
-    top_result = wait.until(
-        EC.presence_of_element_located(
-            (By.CSS_SELECTOR, "ul[role='list'] li[data-index='0']")
-        )
-    )
-    top_result.click()
-    movie_titles = wait.until(
-        EC.presence_of_element_located(
-            (By.CSS_SELECTOR, "h1[itemprop='name'] span")
-        )
-    )
-    assert text in movie_titles.text
+    main_page = MainPage(browser)
+    main_page.open()
+    main_page.search_in_search_bar(text)
+    reslult = main_page.get_first_result()
+    main_page.check_element_to_be_clickable(reslult)
+    main_page.go_to_film_page(reslult)
+    film_page = FilmPage(browser)
+    movie_title = film_page.get_movie_title()
+    assert text in movie_title.text
 
 
 @pytest.mark.ui
 @allure.title("Поиск фильма по не существующему названию #@%")
 def test_search_not_exists_movie_name(browser, search_input):
-    browser.get(ConfigProvider().get_ui_url())
-    wait = WebDriverWait(browser, ConfigProvider().get_ui_waiting_time())
-    search_input = wait.until(EC.presence_of_element_located(search_input))
-    search_input.send_keys("#@%")
-    wait.until(
-        EC.presence_of_element_located(
-            (By.XPATH, "//div[text()='По вашему запросу ничего не найдено']")
-        )
-    )
+    text = "#@%"
+    main_page = MainPage(browser)
+    main_page.open()
+    main_page.search_in_search_bar(text)
+    assert main_page.is_empty_result_search()
 
 
 @pytest.mark.ui
 @allure.title("Переход на страницу Билеты в кино из бокового меню")
 def test_go_to_page_tickets(browser):
     text = "Билеты в кино"
-    browser.get(ConfigProvider().get_ui_url())
-    wait = WebDriverWait(browser, ConfigProvider().get_ui_waiting_time())
-    item_movie_tickets = wait.until(
-        EC.presence_of_element_located(
-            (By.CSS_SELECTOR, "a[href='/lists/movies/movies-in-cinema/']")
-        )
-    )
-    assert text in item_movie_tickets.text
-    wait.until(EC.element_to_be_clickable(item_movie_tickets))
-    item_movie_tickets.click()
-    title = wait.until(
-        EC.presence_of_element_located((By.CSS_SELECTOR, "main h1"))
-    )
-    assert text == title.text
+    main_page = MainPage(browser)
+    main_page.open()
+    main_page.go_to_movie_tickets_page()
+    movie_tickets = MovieTicketsPage(browser)
+    result = movie_tickets.get_movie_title()
+    assert text == result.text
 
 
 @pytest.mark.ui
 @allure.title("Поиск фильма состоящий только из пробелов")
 def test_search_movie_with_whitespace(browser, search_input):
     text = "  "
-    text_message = "К сожалению, по вашему запросу ничего не найдено..."
-    browser.get(ConfigProvider().get_ui_url())
-    wait = WebDriverWait(browser, ConfigProvider().get_ui_waiting_time())
-    search_input = wait.until(EC.presence_of_element_located(search_input))
-    search_input.send_keys(text)
-    search_input.send_keys(Keys.ENTER)
-    wait.until(
-        EC.presence_of_element_located(
-            (By.XPATH, f"//h2[text()='{text_message}']")
-        )
-    )
+    main_page = MainPage(browser)
+    main_page.open()
+    main_page.search_in_search_bar(text)
+    main_page.search_in_search_bar(Keys.ENTER)
+    search_result_page = SearchResultPage(browser)
+    assert search_result_page.is_empty_result_search()
 
 
 @pytest.mark.ui
 @allure.title("Поиск фильма по ПУСТОМУ названию")
 def test_search_with_empty_name(browser, search_input):
     text = ""
-    browser.get(ConfigProvider().get_ui_url())
-    wait = WebDriverWait(browser, ConfigProvider().get_ui_waiting_time())
-    search_input = wait.until(
-        EC.presence_of_element_located(search_input)
-    )
-    search_input.send_keys(text)
-    search_input.send_keys(Keys.ENTER)
-    wait.until(
-        EC.presence_of_element_located((By.CSS_SELECTOR, ".randomMovieButton"))
-    )
+    main_page = MainPage(browser)
+    main_page.open()
+    main_page.search_in_search_bar(text)
+    main_page.search_in_search_bar(Keys.ENTER)
+    chance_page = ChancePage(browser)
+    assert chance_page.has_button_randomMovie()

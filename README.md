@@ -5,7 +5,9 @@
 ### Шаги
 1. Склонировать проект 'git clone https://github.com/anna674-mel/pytest_ui_api_KinoPoisk.git'
 2. Установить зависимости
-3. Запустить тесты 'pytest'
+3. Запустить тесты  python -m pytest
+4. Запуcтить тесты API  python -m pytest -m "api"
+5. Запустить тесты UI  python -m pytest -m "ui"
 
 ### Стек:
 - pytest
